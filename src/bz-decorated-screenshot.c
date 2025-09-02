@@ -31,7 +31,7 @@ struct _BzDecoratedScreenshot
   GtkEventController *motion;
 
   /* Template widgets */
-  GtkRevealer *revealer;
+  //GtkRevealer *revealer;
 };
 
 G_DEFINE_FINAL_TYPE (BzDecoratedScreenshot, bz_decorated_screenshot, ADW_TYPE_BIN);
@@ -93,8 +93,8 @@ bz_decorated_screenshot_set_property (GObject      *object,
 }
 
 static void
-open_externally_clicked (BzDecoratedScreenshot *self,
-                         GtkButton             *button)
+open_externally_clicked (GtkButton             *button,
+                         BzDecoratedScreenshot *self)
 {
   g_autoptr (GError) local_error = NULL;
   const char      *cache_path    = NULL;
@@ -119,8 +119,8 @@ open_externally_clicked (BzDecoratedScreenshot *self,
 }
 
 static void
-copy_clicked (BzDecoratedScreenshot *self,
-              GtkButton             *button)
+copy_clicked (GtkButton             *button,
+              BzDecoratedScreenshot *self)
 {
   g_autoptr (GdkTexture) texture = NULL;
   GdkClipboard *clipboard;
@@ -131,6 +131,53 @@ copy_clicked (BzDecoratedScreenshot *self,
 
   clipboard = gdk_display_get_clipboard (gdk_display_get_default ());
   gdk_clipboard_set_texture (clipboard, texture);
+}
+
+static void
+open_dialog(BzDecoratedScreenshot *self,
+            int n_press,
+            double x,
+            double y,
+            GtkGestureClick *gesture)
+{
+  // Dialog creation
+  AdwDialog *dialog = adw_dialog_new ();
+  adw_dialog_set_title (dialog, "Screenshot");
+  adw_dialog_set_follows_content_size (dialog, TRUE);
+
+  //Toolbar creation
+  AdwToolbarView *toolbar_view = ADW_TOOLBAR_VIEW (adw_toolbar_view_new ());
+
+  //Header bar handling
+  AdwHeaderBar *header_bar = ADW_HEADER_BAR (adw_header_bar_new ());
+  adw_header_bar_set_show_title (header_bar, TRUE);
+  adw_toolbar_view_add_top_bar (toolbar_view, GTK_WIDGET (header_bar));
+
+  // Picture creation from paintable
+  GtkWidget *child_widget = adw_bin_get_child (ADW_BIN (self));
+  GdkPaintable *paintable = bz_screenshot_get_paintable (BZ_SCREENSHOT (child_widget));
+  GtkWidget *picture = gtk_picture_new_for_paintable (GDK_PAINTABLE (paintable));
+  adw_toolbar_view_set_content (toolbar_view, GTK_WIDGET (picture));
+
+  // Buttons creation
+  GtkWidget *btn_open_externally = gtk_button_new_from_icon_name ("external-link-symbolic");
+  gtk_widget_set_tooltip_text (btn_open_externally, "Open in Image Viewer");
+  g_signal_connect (btn_open_externally, "clicked", G_CALLBACK (open_externally_clicked), self);
+
+  GtkWidget *btn_copy = gtk_button_new_from_icon_name ("copy-symbolic");
+  gtk_widget_set_tooltip_text(btn_copy, "Copy to clipboard");
+  g_signal_connect (btn_open_externally, "clicked", G_CALLBACK (copy_clicked), self);
+
+  // Package buttons
+  adw_header_bar_pack_start (header_bar, btn_open_externally);
+  adw_header_bar_pack_start (header_bar, btn_copy);
+
+  // Set child of dialog
+  adw_dialog_set_child (dialog, GTK_WIDGET (toolbar_view));
+
+  // Show it
+  GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
+  adw_dialog_present (dialog, GTK_WIDGET (root));
 }
 
 static void
@@ -155,9 +202,10 @@ bz_decorated_screenshot_class_init (BzDecoratedScreenshotClass *klass)
   g_type_ensure (BZ_TYPE_SCREENSHOT);
 
   gtk_widget_class_set_template_from_resource (widget_class, "/io/github/kolunmi/Bazaar/bz-decorated-screenshot.ui");
-  gtk_widget_class_bind_template_child (widget_class, BzDecoratedScreenshot, revealer);
+  //gtk_widget_class_bind_template_child (widget_class, BzDecoratedScreenshot, revealer);
   gtk_widget_class_bind_template_callback (widget_class, open_externally_clicked);
   gtk_widget_class_bind_template_callback (widget_class, copy_clicked);
+  gtk_widget_class_bind_template_callback (widget_class, open_dialog);
 }
 
 static void
@@ -166,7 +214,7 @@ motion_enter (BzDecoratedScreenshot    *self,
               gdouble                   y,
               GtkEventControllerMotion *controller)
 {
-  gtk_revealer_set_reveal_child (self->revealer, TRUE);
+  // gtk_revealer_set_reveal_child (self->revealer, TRUE); //JEFFSER
   // bz_screenshot_set_focus_x (self->screenshot_widget, x);
   // bz_screenshot_set_focus_y (self->screenshot_widget, y);
 }
@@ -185,7 +233,7 @@ static void
 motion_leave (BzDecoratedScreenshot    *self,
               GtkEventControllerMotion *controller)
 {
-  gtk_revealer_set_reveal_child (self->revealer, FALSE);
+  //gtk_revealer_set_reveal_child (self->revealer, FALSE); //JEFFSER
   // bz_screenshot_set_focus_x (self->screenshot_widget, -1.0);
   // bz_screenshot_set_focus_y (self->screenshot_widget, -1.0);
 }
